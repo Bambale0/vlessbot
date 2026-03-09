@@ -1,0 +1,31 @@
+{
+  "plans": {
+    "1_month": {
+      "name": "1 месяц",
+      "period_months": 1,
+      "price_rub": 299,
+      "price_usd": 3.99,
+      "devices": 3,
+      "description": "3 устройства, полная скорость"
+    },
+    "6_months": {
+      "name": "6 месяцев",
+      "period_months": 6,
+      "price_rub": 1499,
+      "price_usd": 19.99,
+      "devices": 5,
+      "description": "5 устройств, выгода 15%",
+      "badge": "🔥 Популярный"
+    },
+    "12_months": {
+      "name": "12 месяцев",
+      "period_months": 12,
+      "price_rub": 2499,
+      "price_usd": 32.99,
+      "devices": 7,
+      "description": "7 устройств, выгода 30%",
+      "badge": "💰 Выгодный"
+    }
+  },
+  "currency": "RUB"
+}
