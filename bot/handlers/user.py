@@ -94,24 +94,36 @@ async def btn_configs(callback: CallbackQuery):
     for sub in subs:
         expiry = format_expiry(sub.expires_at)
         flow_type = "🔓 Общий" if not sub.flow else "⚡ XTLS"
+        
+        # Generate VLESS link
+        try:
+            vless_link = xray._create_vless_link(sub.uuid, sub.email, sub.flow)
+        except:
+            vless_link = f"vless://{sub.uuid}@194.5.79.95:443?security=reality&flow={sub.flow}&type=tcp&sni=www.google.com&fp=chrome"
+        
         text += (
             f"<b>{sub.email}</b>\n"
             f"Тип: {flow_type}\n"
             f"Действует до: {expiry}\n"
-            f"<code>{sub.uuid}</code>\n\n"
+            f"<code>{vless_link}</code>\n\n"
         )
 
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=main_menu())
+    try:
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=main_menu())
+    except Exception as e:
+        await callback.message.answer(text, parse_mode="HTML", reply_markup=main_menu())
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("device:"))
 async def process_device(callback: CallbackQuery):
     device_type = callback.data.split(":")[1]
+    print(f"[DEBUG] process_device called for user {callback.from_user.id}, device: {device_type}")
 
     await callback.message.edit_text("⏳ Создаю конфигурацию...")
 
     try:
+        print(f"[DEBUG] Creating config for {callback.from_user.id}")
         if device_type == "shared":
             # Общий конфиг без flow
             config = xray.create_shared_client(callback.from_user.id, device_type)
@@ -122,6 +134,8 @@ async def process_device(callback: CallbackQuery):
                 callback.from_user.id, device_type, "xtls-rprx-vision"
             )
             flow = "xtls-rprx-vision"
+        
+        print(f"[DEBUG] Config created: {config.link[:50]}...")
 
         # Сохраняем в БД (без срока, пока не оплачено)
         db.add_subscription(
