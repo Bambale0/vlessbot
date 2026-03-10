@@ -30,6 +30,10 @@ class Database:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self._init_db()
+    
+    def _get_conn(self):
+        """Get database connection"""
+        return sqlite3.connect(self.db_path)
 
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:

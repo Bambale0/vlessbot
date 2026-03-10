@@ -10,6 +10,7 @@ from aiogram.enums import ParseMode
 from bot.config import cfg
 from bot.handlers import get_routers
 from bot.handlers.payment import handle_yookassa_webhook
+from bot.services.subscription_manager import subscription_checker
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,6 +63,16 @@ async def main():
 
     # Запускаем webhook сервер
     await start_webhook_server()
+
+    # Запускаем проверку подписок в фоне (каждый час)
+    asyncio.create_task(subscription_checker(bot, interval_hours=1))
+    
+    # При старте сразу проверяем просроченные подписки
+    from bot.services.subscription_manager import SubscriptionManager
+    manager = SubscriptionManager()
+    deactivated = manager.check_and_deactivate_expired(bot)
+    if deactivated:
+        logger.info(f"Deactivated {len(deactivated)} expired subscriptions on startup")
 
     # Удаление вебхука и запуск
     await bot.delete_webhook(drop_pending_updates=True)
