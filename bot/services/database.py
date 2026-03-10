@@ -165,6 +165,7 @@ class Database:
             conn.commit()
 
     def extend_subscription(self, email: str, new_expires: datetime):
+        """Продлить подписку"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(

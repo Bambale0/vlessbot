@@ -69,7 +69,25 @@ class PaymentPoller:
         """Активировать подписку после оплаты"""
         from datetime import timedelta
         
-        # Создаем подписку
+        # Проверяем, есть ли уже подписка
+        existing_subs = self.db.get_user_subscriptions(telegram_id, active_only=False)
+        
+        if existing_subs:
+            # Продлеваем существующую подписку от текущей даты
+            new_expiry = datetime.now() + timedelta(days=30 * period_months)
+            for sub in existing_subs:
+                self.db.extend_subscription(sub.email, new_expiry)
+            
+            # Отправляем уведомление о продлении
+            if bot:
+                await bot.send_message(
+                    telegram_id,
+                    f"✅ <b>Подписка продлена!</b>\n"
+                    f"Добавлено {period_months} мес. к вашей подписке."
+                )
+            return
+        
+        # Если нет подписки - создаем новую
         config = self.xray.create_client(telegram_id, "mobile", "xtls-rprx-vision")
         
         # Вычисляем срок действия
