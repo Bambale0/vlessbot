@@ -38,18 +38,19 @@ async def cmd_start(message: Message):
     )
 
 
-@router.message(F.text == "💳 Оплатить подписку")
-async def btn_payment(message: Message):
+@router.callback_query(F.data == "menu:payment")
+async def btn_payment(callback: CallbackQuery):
     if cfg.PAYMENT_PROVIDER == "yookassa":
-        await message.answer(
+        await callback.message.edit_text(
             "💳 <b>Оплата через ЮKassa</b>\n\n" "Выберите тариф:",
             parse_mode="HTML",
             reply_markup=payment_plans_yookassa(),
         )
     else:
-        await message.answer(
+        await callback.message.edit_text(
             "📋 Выберите тариф:", reply_markup=payment_plans(cfg.PRICES)
         )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("buy:"))
@@ -75,16 +76,18 @@ async def process_buy(callback: CallbackQuery):
     )
 
 
-@router.message(F.text == "🔑 Получить конфиги")
-async def btn_configs(message: Message):
-    subs = db.get_user_subscriptions(message.from_user.id)
+@router.callback_query(F.data == "menu:configs")
+async def btn_configs(callback: CallbackQuery):
+    subs = db.get_user_subscriptions(callback.from_user.id)
 
     if not subs:
-        await message.answer(
+        await callback.message.edit_text(
             "❌ У вас нет активных конфигураций.\n\n"
             "Сначала оплатите подписку или выберите устройство для создания конфига:",
+            parse_mode="HTML",
             reply_markup=device_selection(),
         )
+        await callback.answer()
         return
 
     text = "📱 <b>Ваши конфигурации:</b>\n\n"
@@ -98,7 +101,8 @@ async def btn_configs(message: Message):
             f"<code>{sub.uuid}</code>\n\n"
         )
 
-    await message.answer(text, parse_mode="HTML", reply_markup=main_menu())
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=main_menu())
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("device:"))
@@ -175,13 +179,14 @@ async def process_device(callback: CallbackQuery):
         await callback.message.edit_text(f"❌ Ошибка: {e}")
 
 
-@router.message(F.text == "❓ Помощь")
-async def btn_help(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "menu:help")
+async def btn_help(callback: CallbackQuery):
+    await callback.message.edit_text(
         "📚 <b>Инструкции по настройке</b>\n\n" "Выберите ваше устройство:",
         parse_mode="HTML",
         reply_markup=help_menu(),
     )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("help:"))
@@ -287,9 +292,9 @@ opkg install xray
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=help_menu())
 
 
-@router.message(F.text == "📞 Техподдержка")
-async def btn_support(message: Message):
-    await message.answer(
+@router.callback_query(F.data == "menu:support")
+async def btn_support(callback: CallbackQuery):
+    await callback.message.edit_text(
         f"📞 <b>Техническая поддержка</b>\n\n"
         f"Если у вас возникли проблемы:\n"
         f"• Не подключается VPN\n"
@@ -300,6 +305,7 @@ async def btn_support(message: Message):
         parse_mode="HTML",
         reply_markup=main_menu(),
     )
+    await callback.answer()
 
 
 @router.callback_query(F.data == "back:menu")

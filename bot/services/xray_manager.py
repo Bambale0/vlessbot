@@ -41,7 +41,8 @@ class XRayManager:
             json.dump(config, f, indent=2)
 
     def _reload_xray(self):
-        subprocess.run(["systemctl", "reload", "xray"], check=True)
+        # Используем pkill для перезагрузки вместо systemctl
+        subprocess.run(["pkill", "-HUP", "xray"], check=False)
 
     def _generate_uuid(self) -> str:
         return str(uuid.uuid4())

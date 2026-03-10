@@ -7,7 +7,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo -e "${GREEN}=== Установка XRay + VLESS Reality + VPN Bot ===${NC}"
+echo -e "${GREEN}=== Установка XRay + VLESS Reality ===${NC}"
 
 # Проверка root
 if [ "$EUID" -ne 0 ]; then 
@@ -15,24 +15,39 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# БЕЗОПАСНОСТЬ: проверяем что не через SSH запущено без tmux/screen
+if [ -n "$SSH_CLIENT" ] && [ -z "$TMUX" ] && [ -z "$STY" ]; then
+    echo -e "${YELLOW}⚠️ Запущено через SSH без tmux/screen${NC}"
+    echo -e "${YELLOW}Если соединение оборвётся, установка прервётся${NC}"
+    echo -e "Нажми Ctrl+C и запусти: ${GREEN}tmux new-session 'bash install_xray.sh'${NC}"
+    sleep 5
+fi
+
 # Получаем IP сервера
-SERVER_IP=$(curl -s ifconfig.me || curl -s icanhazip.com || echo "YOUR_SERVER_IP")
+SERVER_IP=$(curl -s --max-time 10 ifconfig.me || curl -s --max-time 10 icanhazip.com || hostname -I | awk '{print $1}')
 echo -e "${YELLOW}IP сервера: $SERVER_IP${NC}"
+
+# Проверка доступности SSH перед любыми манипуляциями
+echo -e "${YELLOW}Проверка SSH...${NC}"
+if ! systemctl is-active --quiet sshd; then
+    echo -e "${RED}SSH не запущен! Не продолжаем.${NC}"
+    exit 1
+fi
 
 # Установка зависимостей
 echo -e "${YELLOW}Установка зависимостей...${NC}"
-apt update
-apt install -y curl wget unzip jq uuid-runtime openssl iptables-persistent sqlite3
+apt-get update
+apt-get install -y curl wget unzip jq uuid-runtime openssl sqlite3
 
-# Очистка старых VPN (если есть)
+# Очистка старых VPN (осторожно, без iptables -F)
 echo -e "${YELLOW}Очистка старых VPN...${NC}"
 systemctl stop wg-quick@wg0 2>/dev/null || true
 systemctl stop amneziawg-go@wg0 2>/dev/null || true
 docker stop $(docker ps -aq) 2>/dev/null || true
 docker rm $(docker ps -aq) 2>/dev/null || true
-iptables -F
-iptables -t nat -F
-iptables -t mangle -F
+
+# НЕ ДЕЛАЕМ iptables -F! Только специфичные правила
+# iptables -F  # ← ОПАСНО!
 
 # Установка XRay
 echo -e "${YELLOW}Установка XRay...${NC}"
@@ -176,18 +191,41 @@ else
     exit 1
 fi
 
-# Настройка firewall (БЕЗОПАСНО для SSH)
-echo -e "${YELLOW}Настройка firewall...${NC}"
+# === БЕЗОПАСНАЯ настройка firewall ===
+echo -e "${YELLOW}Настройка firewall (безопасно)...${NC}"
 
-# Сначала разрешаем SSH, чтобы не потерять доступ!
-ufw --force reset
-ufw default deny incoming
-ufw default allow outgoing
-ufw allow 22/tcp comment 'SSH'
-ufw allow 443/tcp comment 'XRay VLESS'
-ufw --force enable
+# Проверяем что SSH работает перед изменениями
+SSH_OK=false
+if systemctl is-active --quiet sshd && ss -tulnp | grep -q ':22'; then
+    SSH_OK=true
+fi
 
-echo -e "${GREEN}✅ Firewall настроен (SSH и 443 открыты)${NC}"
+if [ "$SSH_OK" = false ]; then
+    echo -e "${RED}SSH не отвечает, пропускаем настройку firewall!${NC}"
+    echo -e "${YELLOW}Настройте вручную после проверки SSH${NC}"
+else
+    # UFW — безопаснее чем голый iptables
+    ufw --force reset 2>/dev/null || true
+    ufw default deny incoming
+    ufw default allow outgoing
+    ufw allow 22/tcp comment 'SSH'
+    ufw allow 443/tcp comment 'XRay VLESS'
+    
+    # Включаем с таймаутом на случай проблем
+    echo -e "${YELLOW}Включение UFW через 10 сек (Ctrl+C для отмены)...${NC}"
+    sleep 10
+    ufw --force enable
+    
+    # Проверяем что SSH всё ещё работает
+    sleep 2
+    if systemctl is-active --quiet sshd; then
+        echo -e "${GREEN}✅ Firewall настроен, SSH работает${NC}"
+    else
+        echo -e "${RED}❌ SSH упал после firewall! Откатываем...${NC}"
+        ufw --force disable
+        systemctl restart sshd
+    fi
+fi
 
 # Создание базы данных бота
 echo -e "${YELLOW}Создание базы данных...${NC}"
@@ -247,52 +285,12 @@ Public Key: $PUBLIC_KEY
 Short ID: $SHORT_ID
 EOF
 
-# Установка бота
-echo -e "${YELLOW}Установка VPN бота...${NC}"
-REPO_URL="https://github.com/Bambale0/vlessbot.git"
-
-# Проверяем, установлен ли git
-if ! command -v git &> /dev/null; then
-    echo -e "${YELLOW}Установка git...${NC}"
-    apt install -y git
-fi
-
-# Клонируем репозиторий
-if [ -d "/opt/vpn-bot" ]; then
-    echo -e "${YELLOW}Обновление бота...${NC}"
-    cd /opt/vpn-bot
-    git pull origin main 2>/dev/null || git pull origin master 2>/dev/null || true
-else
-    echo -e "${YELLOW}Клонирование репозитория...${NC}"
-    git clone $REPO_URL /opt/vpn-bot
-fi
-
-# Установка Python зависимостей
-echo -e "${YELLOW}Установка Python зависимостей...${NC}"
-cd /opt/vpn-bot
-pip3 install -r requirements.txt
-
-# Создание .env из примера
-if [ ! -f "/opt/vpn-bot/.env" ]; then
-    cp /opt/vpn-bot/.env.example /opt/vpn-bot/.env
-fi
-
-# Сообщение о настройке
+echo -e "${GREEN}=== Установка завершена! ===${NC}"
+echo -e "${YELLOW}Админский конфиг сохранен в: /opt/vpn-bot/configs/admin.txt${NC}"
+echo -e "${YELLOW}Ключи сервера: /usr/local/etc/xray/keys.env${NC}"
 echo -e ""
-echo -e "${GREEN}=== Установка бота завершена! ===${NC}"
-echo -e ""
-echo -e "${YELLOW}НАСТРОЙКА:${NC}"
-echo -e "1. Отредактируйте .env файл:"
-echo -e "   nano /opt/vpn-bot/.env"
-echo -e "   Добавьте: BOT_TOKEN, ADMIN_IDS"
-echo -e ""
-echo -e "2. Для включения YooKassa добавьте:"
-echo -e "   PAYMENT_PROVIDER=yookassa"
-echo -e "   YOOKASSA_SHOP_ID=ваш_id"
-echo -e "   YOOKASSA_SECRET_KEY=ваш_ключ"
-echo -e ""
-echo -e "3. Запуск бота:"
-echo -e "   cd /opt/vpn-bot && python3 -m bot.main"
-echo -e ""
-echo -e "Для автозапуска бота добавьте в crontab:"
-echo -e "   @reboot cd /opt/vpn-bot && python3 -m bot.main"
+echo -e "${GREEN}Для установки бота:${NC}"
+echo -e "1. git clone <repo> /opt/vpn-bot"
+echo -e "2. cd /opt/vpn-bot && pip install -r requirements.txt"
+echo -e "3. nano .env # добавь BOT_TOKEN"
+echo -e "4. python -m bot.main"
