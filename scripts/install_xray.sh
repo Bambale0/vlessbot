@@ -176,11 +176,18 @@ else
     exit 1
 fi
 
-# Настройка firewall
+# Настройка firewall (БЕЗОПАСНО для SSH)
 echo -e "${YELLOW}Настройка firewall...${NC}"
-ufw allow 22/tcp
-ufw allow 443/tcp
+
+# Сначала разрешаем SSH, чтобы не потерять доступ!
+ufw --force reset
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow 22/tcp comment 'SSH'
+ufw allow 443/tcp comment 'XRay VLESS'
 ufw --force enable
+
+echo -e "${GREEN}✅ Firewall настроен (SSH и 443 открыты)${NC}"
 
 # Создание базы данных бота
 echo -e "${YELLOW}Создание базы данных...${NC}"
