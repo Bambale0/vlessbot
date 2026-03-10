@@ -126,13 +126,14 @@ async def process_yookassa_buy(callback: CallbackQuery):
         )
 
         if payment_data:
-            # Сохраняем информацию о платеже в БД
+            # Сохраняем информацию о платеже в БД с payment_id
             db.add_payment(
                 telegram_id=callback.from_user.id,
                 amount=payment_data["amount"],
                 currency="RUB",
                 period_months=period_months,
                 status="pending",
+                payment_id=payment_data.get("payment_id"),
             )
 
             # Отправляем пользователю ссылку на оплату

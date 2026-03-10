@@ -11,6 +11,7 @@ from bot.config import cfg
 from bot.handlers import get_routers
 from bot.handlers.payment import handle_yookassa_webhook
 from bot.services.subscription_manager import subscription_checker
+from bot.services.payment_polling import payment_poller
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,6 +67,9 @@ async def main():
 
     # Запускаем проверку подписок в фоне (каждый час)
     asyncio.create_task(subscription_checker(bot, interval_hours=1))
+    
+    # Запускаем проверку платежей (каждые 5 минут)
+    asyncio.create_task(payment_poller(bot, interval_minutes=5))
     
     # При старте сразу проверяем просроченные подписки
     from bot.services.subscription_manager import SubscriptionManager

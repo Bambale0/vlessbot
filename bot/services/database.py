@@ -180,15 +180,16 @@ class Database:
         currency: str,
         period_months: int,
         status: str = "pending",
+        payment_id: str = None,
     ):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO payments (telegram_id, amount, currency, period_months, status)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO payments (telegram_id, amount, currency, period_months, status, payment_id)
+                VALUES (?, ?, ?, ?, ?, ?)
             """,
-                (telegram_id, amount, currency, period_months, status),
+                (telegram_id, amount, currency, period_months, status, payment_id),
             )
             conn.commit()
 
