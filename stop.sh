@@ -5,10 +5,10 @@ PID=$(pgrep -f "python3 -m bot.main")
 
 if [ -z "$PID" ]; then
     echo "Бот не запущен!"
-    exit 1
+    exit 0
 fi
 
 # Останавливаем процесс
-kill $PID
+kill -9 $PID
 
 echo "Бот остановлен (PID: $PID)"

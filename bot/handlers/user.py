@@ -41,11 +41,24 @@ async def cmd_start(message: Message):
 @router.callback_query(F.data == "menu:payment")
 async def btn_payment(callback: CallbackQuery):
     if cfg.PAYMENT_PROVIDER == "yookassa":
-        await callback.message.edit_text(
-            "💳 <b>Оплата через ЮKassa</b>\n\n" "Выберите тариф:",
-            parse_mode="HTML",
-            reply_markup=payment_plans_yookassa(),
-        )
+        try:
+            response_text = "💳 <b>Оплата через ЮKassa</b>\n\nВыберите тариф:"
+            keyboard = payment_plans_yookassa()
+
+            if callback.message.text:
+                await callback.message.edit_text(
+                    response_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+            else:
+                await callback.message.answer(
+                    response_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard
+                )
+        except Exception as e:
+            await callback.answer(f"Ошибка: {str(e)}")
     else:
         await callback.message.edit_text(
             "📋 Выберите тариф:", reply_markup=payment_plans(cfg.PRICES)
@@ -108,10 +121,23 @@ async def btn_configs(callback: CallbackQuery):
             f"<code>{vless_link}</code>\n\n"
         )
 
+<<<<<<< Updated upstream
     try:
         await callback.message.edit_text(text, parse_mode="HTML", reply_markup=main_menu())
     except Exception as e:
         await callback.message.answer(text, parse_mode="HTML", reply_markup=main_menu())
+=======
+    # Check if menu needs updating before editing
+    current_text = callback.message.text or ""
+    # Compare menu states using string representations
+    current_reply_markup = callback.message.reply_markup
+    new_reply_markup = main_menu()
+    reply_markup_diff = str(current_reply_markup) != str(new_reply_markup) if current_reply_markup else True
+    if text.strip() != current_text.strip() or reply_markup_diff:
+        await callback.message.edit_text(text, parse_mode="HTML", reply_markup=main_menu())
+    else:
+        await callback.answer()
+>>>>>>> Stashed changes
     await callback.answer()
 
 

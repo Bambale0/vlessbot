@@ -49,13 +49,14 @@ async def start_webhook_server():
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ssl_context.load_cert_chain("./cert.pem", "./key.pem")
     
-    site = web.TCPSite(runner, "0.0.0.0", 8443, ssl_context=ssl_context)
+    site = web.TCPSite(runner, "0.0.0.0", 3000, ssl_context=ssl_context)
     await site.start()
     logger.info("Webhook server started on port 8443 with SSL")
 
 
 async def main():
-    bot = Bot(token=cfg.BOT_TOKEN, parse_mode=ParseMode.HTML)
+    from aiogram.client.default import DefaultBotProperties
+    bot = Bot(token=cfg.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
 
     # Регистрация роутеров
@@ -80,7 +81,8 @@ async def main():
 
     # Удаление вебхука и запуск
     await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot, skip_updates=True)
 
 
 if __name__ == "__main__":

@@ -64,7 +64,7 @@ class XRayManager:
             params["flow"] = flow
 
         query = urllib.parse.urlencode(params)
-        return f"vless://{client_uuid}@{self.keys.get('SERVER_IP', 'localhost')}:443?{query}#{urllib.parse.quote(email)}"
+        return f"vless://{client_uuid}@{os.getenv('SERVER_IP', 'localhost')}:443?{query}#{urllib.parse.quote(email)}"
 
     def _create_json_config(
         self, client_uuid: str, email: str, flow: str = "xtls-rprx-vision"
@@ -72,7 +72,7 @@ class XRayManager:
         return {
             "v": "2",
             "ps": email,
-            "add": self.keys.get("SERVER_IP", "localhost"),
+            "add": os.getenv("SERVER_IP", "localhost"),
             "port": "443",
             "id": client_uuid,
             "aid": "0",

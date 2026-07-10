@@ -4,5 +4,9 @@ __pycache__/
 *.db
 *.log
 *.pem
+<<<<<<< Updated upstream
 venv
 *.txt
+=======
+venv
+>>>>>>> Stashed changes
